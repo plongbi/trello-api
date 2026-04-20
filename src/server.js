@@ -1,32 +1,61 @@
-/**
- * Updated by trungquandev.com's author on August 17 2023
- * YouTube: https://youtube.com/@trungquandev
- * "A bit of fragrance clings to the hand that gives flowers!"
- */
-
+/* eslint-disable no-console */
 import express from 'express'
-import { mapOrder } from '~/utils/sorts.js'
+import cors from 'cors'
+import { corsOptions } from './config/cors'
+import { CONNECT_DB, CLOSE_DB } from '~/config/mongodb'
+import exitHook from 'async-exit-hook'
+import { env } from '~/config/environment'
+import { APIs_V1 } from '~/routes/v1'
+import { errorHandlingMiddleware } from '~/middlewares/errorHandlingMiddleware'
 
-const app = express()
+const START_SERVER = () => {
+  const app = express()
 
-const hostname = 'localhost'
-const port = 8017
+  app.use(cors(corsOptions))
 
-app.get('/', (req, res) => {
-  // Test Absolute import mapOrder
-  console.log(mapOrder(
-    [{ id: 'id-1', name: 'One' },
-      { id: 'id-2', name: 'Two' },
-      { id: 'id-3', name: 'Three' },
-      { id: 'id-4', name: 'Four' },
-      { id: 'id-5', name: 'Five' }],
-    ['id-5', 'id-4', 'id-2', 'id-3', 'id-1'],
-    'id'
-  ))
-  res.end('<h1>Hello World!</h1><hr>')
-})
+  // Enable req.body json data
+  app.use(express.json())
 
-app.listen(port, hostname, () => {
-  // eslint-disable-next-line no-console
-  console.log(`Hello Trung Quan Dev, I am running at http://${ hostname }:${ port }/`)
-})
+  // Use API v1
+  app.use('/v1', APIs_V1)
+
+  // Middleware xử lý lỗi tập trung
+  app.use(errorHandlingMiddleware)
+
+  // app.listen(env.APP_HOST, env.APP_PORT, () => {
+  //   console.log(`3. Hi ${env.AUTHOR}, running successfully at Host: ${env.APP_HOST} and Port: ${env.APP_PORT}`)
+  // })
+  app.listen(Number(env.APP_PORT), env.APP_HOST, () => {
+    console.log(`3. Running successfully at Host: ${env.APP_HOST} and Port: ${env.APP_PORT}`)
+  })
+
+  exitHook(() => {
+    console.log('4. Disconnecting...')
+    CLOSE_DB()
+    console.log('5. Disconnected')
+  })
+}
+
+// Chỉ khi kết nối db thành công mới start server backend
+(async () => {
+  try {
+    console.log('1. Connecting...')
+    await CONNECT_DB()
+    console.log('2. Connected')
+    START_SERVER()
+  } catch (error) {
+    console.error(error)
+    process.exit(0)
+  }
+})()
+
+// Chỉ khi kết nối db thành công mới start server backend
+// console.log('1. Connecting...')
+// CONNECT_DB()
+//   .then(() => console.log('2. Connected'))
+//   .then(() => START_SERVER())
+//   .catch(error => {
+//     console.error(error)
+//     process.exit(0)
+//   })
+
