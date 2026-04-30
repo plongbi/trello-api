@@ -6,24 +6,29 @@ import { StatusCodes } from 'http-status-codes'
 import { cloneDeep } from 'lodash'
 import { columnModel } from '~/models/coulmnModel'
 import { cardModel } from '~/models/cardModel'
+import { DEFAULT_PAGE, DEFAULT_ITEMS_PER_PAGE } from '~/utils/constants'
 
-const createNew = async (reqBody) => {
+const createNew = async (userId, reqBody) => {
   try {
+    // Xử lý logic dự liệu
     const newBoard = {
       ...reqBody,
       slug: slugify(reqBody.title)
     }
-    const createdBoard = await boardModel.createNew(newBoard)
 
+    // Gọi tới tầng Model để xử lý lưu bản ghi newBoard vào DB
+    const createdBoard = await boardModel.createNew(userId, newBoard)
+
+    // Lấy bản ghi board sau khi gọi
     const getNewBoard = await boardModel.findOneById(createdBoard.insertedId)
 
     return getNewBoard
   } catch (error) { throw error }
 }
 
-const getDetails = async (boardId) => {
+const getDetails = async (userId, boardId) => {
   try {
-    const board = await boardModel.getDetails(boardId)
+    const board = await boardModel.getDetails(userId, boardId)
     if (!board) throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found')
     // B1: Deep clone board để tránh thay đổi dữ liệu gốc
     const resBoard = cloneDeep(board)
@@ -72,9 +77,21 @@ const moveCardToDifferentColumn = async (reqBody) => {
   } catch (error) { throw error }
 }
 
+const getBoards = async (userId, page, itemsPerPage) => {
+  try {
+    // Nếu ko tồn tại page hoặc itemsPerPage từ FE thì BE cần gán luôn gtri mặc định
+    if (!page) page = DEFAULT_PAGE
+    if (!itemsPerPage) itemsPerPage = DEFAULT_ITEMS_PER_PAGE
+    const results = await boardModel.getBoards(userId, parseInt(page, 10), parseInt(itemsPerPage, 10))
+
+    return results
+  } catch (error) { throw error }
+}
+
 export const boardService = {
   createNew,
   getDetails,
   update,
-  moveCardToDifferentColumn
+  moveCardToDifferentColumn,
+  getBoards
 }

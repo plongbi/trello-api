@@ -1,10 +1,28 @@
+import { env } from '~/config/environment'
+
 // Những domain được phép truy câpj tới tài nguyên server
 export const WHITELIST_DOMAINS = [
-  'http://localhost:5173'
+  // 'http://localhost:5173'
+  // 'https://trello-web-ttcs.vercel.app'
 
 ]
 
 export const BOARD_TYPES = {
   PRIVATE: 'private',
   PUBLIC: 'public'
+}
+
+export const WEBSITE_DOMAINS = (env.BUILD_MODE === 'production') ? env.WEBSITE_DOMAIN_PRODUCTION : env.WEBSITE_DOMAIN_DEVELOPMENT
+
+export const DEFAULT_PAGE = 1
+export const DEFAULT_ITEMS_PER_PAGE = 12
+
+export const INVITATION_TYPES = {
+  BOARD_INVITATION: 'BOARD_INVITATION'
+}
+
+export const BOARD_INVITATION_STATUS = {
+  PENDING: 'PENDING',
+  ACCEPTED: 'ACCEPTED',
+  REJECTED: 'REJECTED'
 }
