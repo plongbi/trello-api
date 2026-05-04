@@ -3,6 +3,8 @@ import { ObjectId } from 'mongodb'
 import { GET_DB } from '~/config/mongodb'
 import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
 import { INVITATION_TYPES, BOARD_INVITATION_STATUS } from '~/utils/constants'
+import { userModel } from './userModel'
+import { boardModel } from './boardModel'
 
 // Define Collection (name & schema)
 const INVITATION_COLLECTION_NAME = 'invitations'
@@ -87,10 +89,46 @@ const update = async (invitationId, updateData) => {
   } catch (error) { throw new Error(error) }
 }
 
+// Query tổng hợp (aggregate) lấy những bản ghi invitation thuộc về 1 user cụ thể
+const findByUser = async (userId) => {
+  try {
+    const queryConditions = [
+      { inviteeId: new ObjectId(userId) }, // Tìm theo người đc mời - người đang thực hiện request
+      { _destroy: false }
+    ]
+
+    const results = await GET_DB().collection(INVITATION_COLLECTION_NAME).aggregate([
+      { $match: { $and: queryConditions } },
+      { $lookup: {
+        from: userModel.USER_COLLECTION_NAME,
+        localField: 'inviterId', // người đi mời
+        foreignField: '_id',
+        as: 'inviter',
+        pipeline: [{ $project: { 'password': 0, 'verifyToken': 0 } }]
+      } },
+      { $lookup: {
+        from: userModel.USER_COLLECTION_NAME,
+        localField: 'inviteeId', // người đc mời
+        foreignField: '_id',
+        as: 'invitee',
+        pipeline: [{ $project: { 'password': 0, 'verifyToken': 0 } }]
+      } },
+      { $lookup: {
+        from: boardModel.BOARD_COLLECTION_NAME,
+        localField: 'boardInvitation.boardId', // Thông tin board
+        foreignField: '_id',
+        as: 'board'
+      } }
+    ]).toArray()
+    return results
+  } catch (error) { throw new Error(error) }
+}
+
 export const invitationModel = {
   INVITATION_COLLECTION_NAME,
   INVITATION_COLLECTION_SCHEMA,
   createNewBoardInvitation,
   findOneById,
-  update
+  update,
+  findByUser
 }
