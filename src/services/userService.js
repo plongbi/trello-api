@@ -1,4 +1,5 @@
 import { userModel } from '~/models/userModel'
+import { cardModel } from '~/models/cardModel'
 import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
 import bcryptjs from 'bcryptjs'
@@ -167,9 +168,15 @@ const update = async (userId, reqBody, userAvatarFile) => {
       updatedUser = await userModel.update(existUser._id, {
         avatar: uploadResult.secure_url
       })
+      // Cập nhật lại avatar trong những comment cũ của cards
+      await cardModel.updateUserInfoInComments(existUser._id.toString(), { avatar: uploadResult.secure_url })
     } else {
       // TH update các thông tin chung
       updatedUser = await userModel.update(existUser._id, reqBody)
+      if (reqBody.displayName) {
+        // Cập nhật lại displayName trong những comment cũ của cards
+        await cardModel.updateUserInfoInComments(existUser._id.toString(), { displayName: reqBody.displayName })
+      }
     }
 
     return pickUser(updatedUser)

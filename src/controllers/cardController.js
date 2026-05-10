@@ -3,7 +3,8 @@ import { cardService } from '../services/cardService.js'
 
 const createNew = async(req, res, next) => {
   try {
-    const createdCard = await cardService.createNew(req.body)
+    const userId = req.jwtDecoded._id
+    const createdCard = await cardService.createNew(userId, req.body)
     res.status(StatusCodes.CREATED).json(createdCard)
   } catch (error) { next(error) }
 }
@@ -18,7 +19,16 @@ const update = async(req, res, next) => {
   } catch (error) { next(error) }
 }
 
+const deleteItem = async(req, res, next) => {
+  try {
+    const cardId = req.params.id
+    const result = await cardService.deleteItem(cardId)
+    res.status(StatusCodes.OK).json(result)
+  } catch (error) { next(error) }
+}
+
 export const cardController = {
   createNew,
-  update
+  update,
+  deleteItem
 }

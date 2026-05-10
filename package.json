@@ -18,6 +18,7 @@
   "dependencies": {
     "@babel/runtime": "^7.22.10",
     "@getbrevo/brevo": "^2.0.0-beta.4",
+    "@google/generative-ai": "^0.24.1",
     "async-exit-hook": "^2.0.1",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.0.0",

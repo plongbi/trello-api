@@ -1,13 +1,15 @@
 import { cardModel } from '~/models/cardModel'
 import { columnModel } from '~/models/coulmnModel'
 import { CloudinaryProvider } from '~/providers/CloudinaryProvider'
+import ApiError from '~/utils/ApiError'
+import { StatusCodes } from 'http-status-codes'
 
-const createNew = async (reqBody) => {
+const createNew = async (userId, reqBody) => {
   try {
     const newCard = {
       ...reqBody
     }
-    const createdCard = await cardModel.createNew(newCard)
+    const createdCard = await cardModel.createNew(userId, newCard)
     const getNewCard = await cardModel.findOneById(createdCard.insertedId)
 
     if (getNewCard) {
@@ -46,6 +48,21 @@ const update = async (cardId, reqBody, cardCoverFile, userInfo) => {
 
     }
 
+    else if (updateData.commentToUpdate) {
+      updatedCard = await cardModel.updateComment(cardId, {
+        userId: userInfo._id,
+        commentedAt: updateData.commentToUpdate.commentedAt,
+        content: updateData.commentToUpdate.content
+      })
+    }
+
+    else if (updateData.commentToDelete) {
+      updatedCard = await cardModel.deleteComment(cardId, {
+        userId: userInfo._id,
+        commentedAt: updateData.commentToDelete.commentedAt
+      })
+    }
+
     else if (updateData.incomingMemberInfo) {
       // TH ADD hoặc REMOVE member ra khỏi card
       updatedCard =await cardModel.updateMembers(cardId, updateData.incomingMemberInfo)
@@ -57,12 +74,26 @@ const update = async (cardId, reqBody, cardCoverFile, userInfo) => {
       updatedCard = await cardModel.update(cardId, updateData)
     }
     return updatedCard
+  } catch (error) { throw error }
+}
 
-} catch (error) { throw error }
+const deleteItem = async (cardId) => {
+  try {
+    const targetCard = await cardModel.findOneById(cardId)
+    if (!targetCard) throw new ApiError(StatusCodes.NOT_FOUND, 'Card not found!')
 
+    // Xóa card
+    await cardModel.deleteOneById(cardId)
+
+    // Xoá cardId trong mảng cardOrderIds của column chứa nó
+    await columnModel.pullCardOrderIds(targetCard)
+
+    return { deleteResult: 'Card deleted successfully!' }
+  } catch (error) { throw error }
 }
 
 export const cardService = {
   createNew,
-  update
+  update,
+  deleteItem
 }

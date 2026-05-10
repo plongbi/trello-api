@@ -11,6 +11,7 @@ import cookieParser from 'cookie-parser'
 import socketIo from 'socket.io'
 import http from 'http'
 import { inviteUserToBoardSocket } from './sockets/inviteUserToBoardSocket'
+import { chatSocket } from './sockets/chatSocket'
 
 const START_SERVER = () => {
   const app = express()
@@ -38,21 +39,21 @@ const START_SERVER = () => {
 
   // Tạo 1 cái server mới bọc app của express để làm realtime với socketio
   const server = http.createServer(app)
-  // Khởi tạo biến io với server và cors
   const io = socketIo(server, { cors: corsOptions })
   io.on('connection', (socket) => {
     // Gọi các socket tùy theo tính năng
     inviteUserToBoardSocket(socket)
+    chatSocket(socket, io)
   })
 
-  // Môi trường production
-  if (env.NODE_ENV === 'production') {
+  // Môi trường Production (ví dụ Render, Heroku...)
+  if (env.BUILD_MODE === 'production') {
     server.listen(process.env.PORT, () => {
       console.log(`3. Production running successfully at Port: ${process.env.PORT}`)
     })
   } else {
-    // Môi trường local dev
-    server.listen(Number(env.LOCAL_DEV_APP_PORT), env.LOCAL_DEV_APP_HOST, () => {
+    // Môi trường Local Dev
+    server.listen(env.LOCAL_DEV_APP_PORT, env.LOCAL_DEV_APP_HOST, () => {
       console.log(`3. Local dev running successfully at Host: ${env.LOCAL_DEV_APP_HOST} and Port: ${env.LOCAL_DEV_APP_PORT}`)
     })
   }

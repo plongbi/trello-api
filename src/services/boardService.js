@@ -88,10 +88,26 @@ const getBoards = async (userId, page, itemsPerPage) => {
   } catch (error) { throw error }
 }
 
+const deleteBoard = async (boardId) => {
+  try {
+    // B1: Xóa Board
+    await boardModel.deleteOneById(boardId)
+
+    // B2: Xóa toàn bộ Columns thuộc Board này
+    await columnModel.deleteManyByBoardId(boardId)
+
+    // B3: Xóa toàn bộ Cards thuộc Board này
+    await cardModel.deleteManyByBoardId(boardId)
+
+    return { deleteResult: 'Board and all its columns/cards deleted successfully!' }
+  } catch (error) { throw error }
+}
+
 export const boardService = {
   createNew,
   getDetails,
   update,
   moveCardToDifferentColumn,
-  getBoards
+  getBoards,
+  deleteBoard
 }

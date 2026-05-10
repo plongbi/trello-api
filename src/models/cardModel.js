@@ -14,6 +14,9 @@ const CARD_COLLECTION_SCHEMA = Joi.object({
   description: Joi.string().optional(),
 
   cover: Joi.string().default(null),
+  ownerIds: Joi.array().items(
+    Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
+  ).default([]),
   memberIds: Joi.array().items(
     Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)
   ).default([]),
@@ -24,7 +27,8 @@ const CARD_COLLECTION_SCHEMA = Joi.object({
     userAvatar: Joi.string(),
     userDisplayName: Joi.string(),
     content: Joi.string(),
-    commentedAt: Joi.date().timestamp()
+    commentedAt: Joi.date().timestamp(),
+    updatedAt: Joi.date().timestamp()
   }).default([]),
 
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
@@ -38,13 +42,14 @@ const validateBeforeCreate = async (data) => {
   return await CARD_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })
 }
 
-const createNew = async (data) => {
+const createNew = async (userId, data) => {
   try {
     const validData = await validateBeforeCreate(data)
     const newCardToAdd = {
       ...validData,
       boardId: new ObjectId(validData.boardId),
-      columnId: new ObjectId(validData.columnId)
+      columnId: new ObjectId(validData.columnId),
+      ownerIds: [new ObjectId(userId)]
     }
     const createdCard = await GET_DB().collection(CARD_COLLECTION_NAME).insertOne(newCardToAdd)
     return createdCard
@@ -117,6 +122,62 @@ const updateMembers = async (cardId, incomingMemberInfo) => {
   } catch (error) { throw new Error(error) }
 }
 
+const deleteOneById = async (cardId) => {
+  try {
+    const result = await GET_DB().collection(CARD_COLLECTION_NAME).deleteOne({ _id: new ObjectId(cardId) })
+    return result
+  } catch (error) { throw new Error(error) }
+}
+
+const updateUserInfoInComments = async (userId, updateData) => {
+  try {
+    const updateCondition = {}
+    if (updateData.displayName) updateCondition['comments.$[elem].userDisplayName'] = updateData.displayName
+    if (updateData.avatar) updateCondition['comments.$[elem].userAvatar'] = updateData.avatar
+
+    if (Object.keys(updateCondition).length === 0) return null
+
+    // Cần đảm bảo match đúng kiểu dữ liệu của userId, thông thường userId trong comments được lưu dưới dạng chuỗi (string)
+    // vì cardService sử dụng userInfo._id (là chuỗi string được giải mã từ jwtDecoded).
+    // Ở đây ta dùng string vì Joi đã validate nó là string và ta không ép kiểu sang ObjectId khi thêm comment.
+    const result = await GET_DB().collection(CARD_COLLECTION_NAME).updateMany(
+      { 'comments.userId': userId }, // condition to find matching cards (điều kiện tìm card)
+      { $set: updateCondition },
+      { arrayFilters: [{ 'elem.userId': userId }] } // filter to update the correct array elements (lọc để update đúng comment)
+    )
+    return result
+  } catch (error) { throw new Error(error) }
+}
+
+const updateComment = async (cardId, commentData) => {
+  try {
+    const result = await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(cardId), 'comments.userId': commentData.userId, 'comments.commentedAt': commentData.commentedAt },
+      { $set: { 'comments.$.content': commentData.content, 'comments.$.updatedAt': Date.now() } },
+      { returnDocument: 'after' }
+    )
+    return result
+  } catch (error) { throw new Error(error) }
+}
+
+const deleteComment = async (cardId, commentData) => {
+  try {
+    const result = await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(cardId) },
+      { $pull: { comments: { userId: commentData.userId, commentedAt: commentData.commentedAt } } },
+      { returnDocument: 'after' }
+    )
+    return result
+  } catch (error) { throw new Error(error) }
+}
+
+const deleteManyByBoardId = async (boardId) => {
+  try {
+    const result = await GET_DB().collection(CARD_COLLECTION_NAME).deleteMany({ boardId: new ObjectId(boardId) })
+    return result
+  } catch (error) { throw new Error(error) }
+}
+
 export const cardModel = {
   CARD_COLLECTION_NAME,
   CARD_COLLECTION_SCHEMA,
@@ -125,5 +186,10 @@ export const cardModel = {
   update,
   deleteManyByColumnId,
   unshiftNewComment,
-  updateMembers
+  updateMembers,
+  deleteOneById,
+  updateUserInfoInComments,
+  updateComment,
+  deleteComment,
+  deleteManyByBoardId
 }
